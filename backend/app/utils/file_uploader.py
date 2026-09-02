@@ -30,11 +30,17 @@ def save_to_google_drive(file_obj, filename, folder_id):
     try:
         credentials_json = os.environ.get('GOOGLE_CREDENTIALS_JSON')
         if not credentials_json:
-            print("[GOOGLE DRIVE] GOOGLE_CREDENTIALS_JSON absent des variables d'environnement.")
+            print("[GOOGLE DRIVE] Variable GOOGLE_CREDENTIALS_JSON manquante.")
             return None
 
-        # Nettoyage et parsing du JSON
-        creds_dict = json.loads(credentials_json)
+        # Nettoyage des guillemets accidentels autour du bloc JSON
+        clean_json = credentials_json.strip()
+        if clean_json.startswith("'") and clean_json.endswith("'"):
+            clean_json = clean_json[1:-1].strip()
+
+        creds_dict = json.loads(clean_json)
+
+        # Nettoyage des retours à la ligne échappés \\n dans la clé privée
         if 'private_key' in creds_dict and isinstance(creds_dict['private_key'], str):
             creds_dict['private_key'] = creds_dict['private_key'].replace('\\n', '\n')
 
@@ -49,15 +55,17 @@ def save_to_google_drive(file_obj, filename, folder_id):
         file_metadata = {
             'name': clean_filename,
         }
+
         if folder_id:
-            file_metadata['parents'] = [folder_id.strip()]
+            clean_folder_id = folder_id.strip().strip('"').strip("'")
+            file_metadata['parents'] = [clean_folder_id]
 
         file_content = io.BytesIO(file_obj.read())
         file_obj.seek(0)
 
         media = MediaIoBaseUpload(file_content, mimetype=file_obj.mimetype, resumable=True)
 
-        print(f"[GOOGLE DRIVE] Début de l'envoi du fichier : {clean_filename}")
+        print(f"[GOOGLE DRIVE] Envoi du fichier vers le dossier : {folder_id}")
 
         drive_file = drive_service.files().create(
             body=file_metadata,
@@ -67,9 +75,9 @@ def save_to_google_drive(file_obj, filename, folder_id):
         ).execute()
 
         file_id = drive_file.get('id')
-        print(f"[GOOGLE DRIVE] Fichier créé avec succès, ID: {file_id}")
+        print(f"[GOOGLE DRIVE SUCCESS] Fichier créé avec succès dans Google Drive ! ID: {file_id}")
 
-        # Partage public en lecture
+        # Partage du fichier
         try:
             drive_service.permissions().create(
                 fileId=file_id,
@@ -77,14 +85,13 @@ def save_to_google_drive(file_obj, filename, folder_id):
                 supportsAllDrives=True
             ).execute()
         except Exception as perm_err:
-            print(f"[GOOGLE DRIVE] Warning permission : {perm_err}")
+            print(f"[GOOGLE DRIVE PERM WARNING] {perm_err}")
 
         direct_url = f"https://lh3.googleusercontent.com/d/{file_id}"
-        print(f"[GOOGLE DRIVE] URL finale générée : {direct_url}")
         return direct_url
 
     except Exception as e:
-        print(f"[GOOGLE DRIVE ERROR] Échec de l'envoi vers Google Drive : {e}")
+        print(f"[GOOGLE DRIVE ERROR] Échec upload Google Drive : {e}")
         traceback.print_exc()
         return None
 
@@ -98,7 +105,7 @@ def save_uploaded_file(file_obj, subfolder='posts'):
 
     media_type = get_media_type(filename)
 
-    # 1. Google Drive
+    # 1. Tentative Google Drive
     google_folder_id = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
     google_creds = os.environ.get('GOOGLE_CREDENTIALS_JSON')
     if google_creds:
@@ -106,7 +113,7 @@ def save_uploaded_file(file_obj, subfolder='posts'):
         if drive_url:
             return drive_url, media_type
 
-    # 2. Cloudinary
+    # 2. Tentative Cloudinary
     cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME')
     api_key = os.environ.get('CLOUDINARY_API_KEY')
     api_secret = os.environ.get('CLOUDINARY_API_SECRET')
