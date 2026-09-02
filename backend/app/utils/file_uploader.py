@@ -1,7 +1,12 @@
 import os
 import uuid
+import json
+import io
 from werkzeug.utils import secure_filename
 from flask import current_app
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload
 import cloudinary
 import cloudinary.uploader
 
@@ -20,6 +25,51 @@ def get_media_type(filename):
         return 'video'
     return 'unknown'
 
+def save_to_google_drive(file_obj, filename, folder_id):
+    try:
+        credentials_json = os.environ.get('GOOGLE_CREDENTIALS_JSON')
+        if not credentials_json:
+            return None
+
+        creds_dict = json.loads(credentials_json)
+        credentials = service_account.Credentials.from_service_account_info(
+            creds_dict,
+            scopes=['https://www.googleapis.com/auth/drive']
+        )
+
+        drive_service = build('drive', 'v3', credentials=credentials)
+
+        file_metadata = {
+            'name': f"{uuid.uuid4().hex}_{filename}",
+            'parents': [folder_id] if folder_id else []
+        }
+
+        file_content = io.BytesIO(file_obj.read())
+        file_obj.seek(0)
+
+        media = MediaIoBaseUpload(file_content, mimetype=file_obj.mimetype, resumable=True)
+
+        drive_file = drive_service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields='id, webViewLink, webContentLink'
+        ).execute()
+
+        file_id = drive_file.get('id')
+
+        # Rendre le fichier lisible publiquement
+        drive_service.permissions().create(
+            fileId=file_id,
+            body={'type': 'anyone', 'role': 'reader'}
+        ).execute()
+
+        # URL de rendu direct Google Drive
+        direct_url = f"https://lh3.googleusercontent.com/d/{file_id}"
+        return direct_url
+    except Exception as e:
+        print(f"[GOOGLE DRIVE] Erreur upload : {e}")
+        return None
+
 def save_uploaded_file(file_obj, subfolder='posts'):
     if not file_obj or file_obj.filename == '':
         return None, None
@@ -30,7 +80,15 @@ def save_uploaded_file(file_obj, subfolder='posts'):
 
     media_type = get_media_type(filename)
 
-    # Si Cloudinary est configuré (Stockage Cloud permanent gratuit)
+    # 1. Téléversement automatique vers votre stockage Google Drive si configuré
+    google_folder_id = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
+    google_creds = os.environ.get('GOOGLE_CREDENTIALS_JSON')
+    if google_creds:
+        drive_url = save_to_google_drive(file_obj, filename, google_folder_id)
+        if drive_url:
+            return drive_url, media_type
+
+    # 2. Téléversement Cloudinary si configuré
     cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME')
     api_key = os.environ.get('CLOUDINARY_API_KEY')
     api_secret = os.environ.get('CLOUDINARY_API_SECRET')
@@ -59,7 +117,7 @@ def save_uploaded_file(file_obj, subfolder='posts'):
         except Exception as e:
             print(f"[CLOUDINARY] Erreur upload cloud, fallback local : {e}")
 
-    # Fallback local
+    # 3. Fallback local
     ext = filename.rsplit('.', 1)[1].lower()
     unique_filename = f"{uuid.uuid4().hex}.{ext}"
     
