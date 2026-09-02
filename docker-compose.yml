@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  db:
+    image: mariadb:11
+    container_name: resoc_mariadb
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootsecret}
+      MYSQL_DATABASE: ${DB_NAME:-resoc_db}
+      MYSQL_USER: ${DB_USER:-resoc_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-resoc_password}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - resoc_net
+    healthcheck:
+      test: ["CMD", "healthcheck-sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: resoc_backend
+    restart: always
+    environment:
+      FLASK_ENV: production
+      SECRET_KEY: ${SECRET_KEY:-dev_secret_key_change_in_production}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev_jwt_secret_change_in_production}
+      DATABASE_URL: mysql+pymysql://${DB_USER:-resoc_user}:${DB_PASSWORD:-resoc_password}@db:3306/${DB_NAME:-resoc_db}
+      UPLOAD_FOLDER: /app/uploads
+      MAX_CONTENT_LENGTH: 104857600  # 100 MB max request payload
+    volumes:
+      - media_uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - resoc_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: resoc_frontend
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - media_uploads:/usr/share/nginx/html/uploads:ro
+    depends_on:
+      - backend
+    networks:
+      - resoc_net
+
+networks:
+  resoc_net:
+    driver: bridge
+
+volumes:
+  mariadb_data:
+  media_uploads:
