@@ -7,14 +7,12 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # Initialiser les extensions
     db.init_app(app)
     jwt.init_app(app)
     cors.init_app(app, resources={r"/api/*": {"origins": "*"}})
 
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-    # Enregistrer les Blueprints
     from app.routes.auth import auth_bp
     from app.routes.admin import admin_bp
     from app.routes.posts import posts_bp
@@ -35,12 +33,10 @@ def create_app(config_class=Config):
     def health():
         return {'status': 'healthy', 'app': 'Resoc API'}
 
-    # Gestionnaire d'erreur 500 informatif
     @app.errorhandler(500)
     def handle_500(e):
         return jsonify({'error': f'Erreur serveur : {str(e)}'}), 500
 
-    # Initialiser la BDD au démarrage de l'app
     try:
         init_db(app)
     except Exception as e:
@@ -54,12 +50,20 @@ def init_db(app):
         try:
             db.create_all()
         except Exception as e:
-            print(f"[BDD] Erreur de connexion MariaDB/MySQL : {e}")
-            print("[BDD] Bascule automatique sur la base de données SQLite locale...")
+            print(f"[BDD] Bascule SQLite : {e}")
             app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///resoc.db'
             db.engine.dispose()
             db.init_app(app)
             db.create_all()
+
+        # AUTO-MIGRATION : Ajouter la colonne 'bio' si la table existe déjà sans cette colonne
+        try:
+            with db.engine.connect() as conn:
+                conn.execute(db.text("ALTER TABLE users ADD COLUMN bio VARCHAR(255)"))
+                conn.commit()
+                print("[MIGRATION] Colonne 'bio' ajoutée à la table users.")
+        except Exception:
+            pass  # La colonne bio existe déjà
 
         admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
         admin_email = os.environ.get('ADMIN_EMAIL', 'admin@resoc.local')
