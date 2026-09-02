@@ -2,28 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api, getMediaUrl } from '../services/api';
 import { PostCard } from '../components/PostCard';
-import { Grid, Layers, Settings, Camera, Save, KeyRound, Mail, Heart, MessageSquare, X, Film, Image as ImageIcon } from 'lucide-react';
+import { Grid, Layers, Settings, Camera, Save, KeyRound, Mail, Heart, MessageSquare, X, Film, Edit3 } from 'lucide-react';
 
 export function ProfilePage({ targetUsername }) {
   const { user: currentUser, updateUser } = useAuth();
   
-  // Si aucun targetUsername n'est fourni, afficher le profil de l'utilisateur connecté
   const usernameToFetch = targetUsername || currentUser?.username;
   const isOwnProfile = currentUser?.username === usernameToFetch;
 
   const [userProfile, setUserProfile] = useState(isOwnProfile ? currentUser : null);
   const [userPosts, setUserPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('grid'); // 'grid', 'feed', 'settings'
+  const [activeTab, setActiveTab] = useState('grid');
   const [selectedPostModal, setSelectedPostModal] = useState(null);
 
-  // Édition de profil (Propriétaire)
+  // Édition rapide de la Bio & Avatar (En-tête & Paramètres)
   const [firstName, setFirstName] = useState(currentUser?.first_name || '');
   const [lastName, setLastName] = useState(currentUser?.last_name || '');
   const [bio, setBio] = useState(currentUser?.bio || '');
   const [email, setEmail] = useState(currentUser?.email || '');
-  const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(getMediaUrl(currentUser?.avatar_url) || '');
+  const [isEditingBioInline, setIsEditingBioInline] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [profileMsg, setProfileMsg] = useState({ text: '', type: '' });
 
@@ -58,16 +57,37 @@ export function ProfilePage({ targetUsername }) {
     }
   }, [usernameToFetch]);
 
-  const handleAvatarChange = (e) => {
+  // Upload immédiat de photo de profil (Avatar)
+  const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setAvatarFile(file);
-      setAvatarPreview(URL.createObjectURL(file));
+    if (!file) return;
+
+    setAvatarPreview(URL.createObjectURL(file));
+    setLoadingProfile(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      formData.append('first_name', firstName);
+      formData.append('last_name', lastName);
+      formData.append('bio', bio);
+      formData.append('email', email);
+
+      const res = await api.updateProfile(formData);
+      updateUser(res.user);
+      setUserProfile(res.user);
+      setAvatarPreview(getMediaUrl(res.user.avatar_url));
+      setProfileMsg({ text: 'Photo de profil mise à jour !', type: 'success' });
+    } catch (err) {
+      setProfileMsg({ text: err.message || 'Erreur lors de l\'envoi de la photo.', type: 'danger' });
+    } finally {
+      setLoadingProfile(false);
     }
   };
 
+  // Enregistrement de la bio et des infos
   const handleSaveProfile = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setLoadingProfile(true);
     setProfileMsg({ text: '', type: '' });
 
@@ -77,13 +97,11 @@ export function ProfilePage({ targetUsername }) {
       formData.append('last_name', lastName.trim());
       formData.append('bio', bio.trim());
       formData.append('email', email.trim());
-      if (avatarFile) {
-        formData.append('avatar', avatarFile);
-      }
 
       const res = await api.updateProfile(formData);
       updateUser(res.user);
       setUserProfile(res.user);
+      setIsEditingBioInline(false);
       setProfileMsg({ text: 'Profil mis à jour avec succès.', type: 'success' });
     } catch (err) {
       setProfileMsg({ text: err.message || 'Erreur lors de la mise à jour.', type: 'danger' });
@@ -111,7 +129,6 @@ export function ProfilePage({ targetUsername }) {
     }
   };
 
-  // Récupérer la liste plate de tous les médias du membre pour la grille Instagram
   const allMediaItems = userPosts.flatMap((post) =>
     (post.media || []).map((m) => ({
       ...m,
@@ -119,7 +136,7 @@ export function ProfilePage({ targetUsername }) {
     }))
   );
 
-  const avatarUrl = getMediaUrl(userProfile?.avatar_url);
+  const avatarUrl = isOwnProfile ? avatarPreview : getMediaUrl(userProfile?.avatar_url);
 
   if (loading) {
     return (
@@ -139,18 +156,54 @@ export function ProfilePage({ targetUsername }) {
 
   return (
     <div style={{ maxWidth: 880, margin: '0 auto' }}>
-      {/* En-tête Profil Style Instagram */}
+      {/* En-tête Profil Instagram */}
       <div className="glass-card" style={{ marginBottom: 24, padding: '28px 24px' }}>
+        {profileMsg.text && <div className={`alert alert-${profileMsg.type}`} style={{ marginBottom: 20 }}>{profileMsg.text}</div>}
+
         <div className="insta-profile-header">
-          {/* Avatar avec anneau dégradé vibrant */}
-          <div className="insta-avatar-ring">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt={userProfile.username} className="insta-avatar-img" />
-            ) : (
-              <div className="insta-avatar-placeholder">
-                {(userProfile.first_name?.[0] || userProfile.username[0]).toUpperCase()}
-              </div>
+          {/* Avatar avec anneau dégradé vibrant & bouton de changement de photo si propre compte */}
+          <div style={{ position: 'relative' }}>
+            <div className="insta-avatar-ring">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={userProfile.username} className="insta-avatar-img" />
+              ) : (
+                <div className="insta-avatar-placeholder">
+                  {(userProfile.first_name?.[0] || userProfile.username[0]).toUpperCase()}
+                </div>
+              )}
+            </div>
+
+            {isOwnProfile && (
+              <label
+                htmlFor="headerAvatarInput"
+                style={{
+                  position: 'absolute',
+                  bottom: 4,
+                  right: 4,
+                  background: 'var(--accent-gradient)',
+                  color: '#fff',
+                  borderRadius: '50%',
+                  width: 34,
+                  height: 34,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                  border: '2px solid var(--bg-secondary)'
+                }}
+                title="Changer ma photo de profil"
+              >
+                <Camera size={18} />
+              </label>
             )}
+            <input
+              type="file"
+              id="headerAvatarInput"
+              accept="image/*"
+              onChange={handleAvatarUpload}
+              style={{ display: 'none' }}
+            />
           </div>
 
           {/* Informations Utilisateur */}
@@ -191,25 +244,57 @@ export function ProfilePage({ targetUsername }) {
             </div>
 
             {/* Nom & Prénom */}
-            <div style={{ fontWeight: 700, fontSize: '1.05rem' }}>
+            <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-main)' }}>
               {userProfile.first_name ? `${userProfile.first_name} ${userProfile.last_name}` : userProfile.username}
             </div>
 
-            {/* Bio / Citation */}
-            {userProfile.bio ? (
-              <p style={{ fontSize: '0.92rem', marginTop: 6, color: 'var(--text-main)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
-                {userProfile.bio}
-              </p>
-            ) : (
-              isOwnProfile && (
-                <div
-                  style={{ fontSize: '0.85rem', color: 'var(--text-subtle)', marginTop: 4, cursor: 'pointer', fontStyle: 'italic' }}
-                  onClick={() => setActiveTab('settings')}
-                >
-                  + Ajouter une bio ou une phrase de présentation...
+            {/* BIO DE L'UTILISATEUR AFFICHÉE SUR LE PROFIL */}
+            <div style={{ marginTop: 8 }}>
+              {isEditingBioInline ? (
+                <div style={{ marginTop: 8 }}>
+                  <textarea
+                    className="form-textarea"
+                    placeholder="Écrivez votre bio / citation..."
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    rows={2}
+                    style={{ fontSize: '0.9rem' }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <button className="btn btn-primary btn-sm" onClick={handleSaveProfile} disabled={loadingProfile}>
+                      <Save size={14} /> Enregistrer la bio
+                    </button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => setIsEditingBioInline(false)}>
+                      Annuler
+                    </button>
+                  </div>
                 </div>
-              )
-            )}
+              ) : userProfile.bio ? (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 4 }}>
+                  <p style={{ fontSize: '0.95rem', color: 'var(--text-main)', whiteSpace: 'pre-wrap', lineHeight: 1.5, fontStyle: 'italic', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid var(--accent-primary)', width: '100%' }}>
+                    "{userProfile.bio}"
+                  </p>
+                  {isOwnProfile && (
+                    <button
+                      onClick={() => setIsEditingBioInline(true)}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}
+                      title="Modifier la bio"
+                    >
+                      <Edit3 size={16} />
+                    </button>
+                  )}
+                </div>
+              ) : (
+                isOwnProfile && (
+                  <div
+                    style={{ fontSize: '0.88rem', color: 'var(--accent-primary)', marginTop: 6, cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    onClick={() => setIsEditingBioInline(true)}
+                  >
+                    <Edit3 size={14} /> + Ajouter une bio ou une phrase de présentation...
+                  </div>
+                )
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -243,12 +328,12 @@ export function ProfilePage({ targetUsername }) {
         )}
       </div>
 
-      {/* ONGLET 1 : GRILLE MÉDIAS INSTAGRAM */}
+      {/* ONGLET 1 : GRILLE MÉDIAS */}
       {activeTab === 'grid' && (
         <div>
           {allMediaItems.length === 0 ? (
             <div className="glass-card" style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
-              Aucune photo ou vidéo publiée.
+              Aucune photo ou vidéo publiée par ce membre.
             </div>
           ) : (
             <div className="insta-media-grid">
@@ -269,12 +354,10 @@ export function ProfilePage({ targetUsername }) {
                       <img src={fullUrl} alt={`Média ${idx + 1}`} className="insta-grid-media" />
                     )}
 
-                    {/* Indicateurs en haut à droite (Vidéo / Multiples photos) */}
                     <div className="insta-grid-badge">
                       {hasMultipleMedia ? <Layers size={14} color="#fff" /> : isVideo ? <Film size={14} color="#fff" /> : null}
                     </div>
 
-                    {/* Effet de survol avec likes et commentaires */}
                     <div className="insta-grid-overlay">
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <Heart size={18} fill="#fff" />
@@ -293,7 +376,7 @@ export function ProfilePage({ targetUsername }) {
         </div>
       )}
 
-      {/* ONGLET 2 : FIL DE PUBLICATIONS */}
+      {/* ONGLET 2 : PUBLICATIONS */}
       {activeTab === 'feed' && (
         <div>
           {userPosts.length === 0 ? (
@@ -312,27 +395,24 @@ export function ProfilePage({ targetUsername }) {
         </div>
       )}
 
-      {/* ONGLET 3 : PARAMÈTRES ET ÉDITION DU PROFIL (Si propre profil) */}
+      {/* ONGLET 3 : PARAMÈTRES */}
       {activeTab === 'settings' && isOwnProfile && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div className="glass-card">
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 16 }}>Éditer mon profil</h3>
-
-            {profileMsg.text && <div className={`alert alert-${profileMsg.type}`}>{profileMsg.text}</div>}
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 16 }}>Changer ma photo & mes informations</h3>
 
             <form onSubmit={handleSaveProfile}>
-              {/* Photo de profil / Avatar */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20 }}>
                 <div style={{ position: 'relative' }}>
-                  {avatarPreview ? (
-                    <img src={avatarPreview} alt="Avatar" className="avatar avatar-lg" />
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Avatar" className="avatar avatar-lg" />
                   ) : (
                     <div className="avatar avatar-lg">
                       {(firstName?.[0] || currentUser?.username?.[0] || '?').toUpperCase()}
                     </div>
                   )}
                   <label
-                    htmlFor="avatarInput"
+                    htmlFor="settingsAvatarInput"
                     style={{
                       position: 'absolute',
                       bottom: 0,
@@ -351,12 +431,12 @@ export function ProfilePage({ targetUsername }) {
                   >
                     <Camera size={16} />
                   </label>
-                  <input type="file" id="avatarInput" accept="image/*" onChange={handleAvatarChange} style={{ display: 'none' }} />
+                  <input type="file" id="settingsAvatarInput" accept="image/*" onChange={handleAvatarUpload} style={{ display: 'none' }} />
                 </div>
 
                 <div>
                   <div style={{ fontWeight: 700 }}>@{currentUser?.username}</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Changer de photo de profil</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Cliquez sur l'icône de caméra pour importer votre photo de profil</div>
                 </div>
               </div>
 
@@ -421,7 +501,7 @@ export function ProfilePage({ targetUsername }) {
         </div>
       )}
 
-      {/* MODAL POUR AFFICHER LA PUBLICATION CLIQUÉE DANS LA GRILLE */}
+      {/* MODAL DU POST */}
       {selectedPostModal && (
         <div className="modal-overlay" onClick={() => setSelectedPostModal(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640, padding: 12 }}>
