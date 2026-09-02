@@ -5,7 +5,7 @@ import { MediaCarousel } from './MediaCarousel';
 import { CommentSection } from './CommentSection';
 import { Heart, MessageSquare, Trash2 } from 'lucide-react';
 
-export function PostCard({ post, onDelete }) {
+export function PostCard({ post, onDelete, onViewProfile }) {
   const { user } = useAuth();
   const [reactionsCount, setReactionsCount] = useState(post.reactions_count || 0);
   const [userReaction, setUserReaction] = useState(post.user_reaction);
@@ -41,10 +41,21 @@ export function PostCard({ post, onDelete }) {
   const authorAvatarUrl = getMediaUrl(author.avatar_url);
   const isAuthorOrAdmin = user?.is_admin || user?.id === post.user_id;
 
+  const handleAuthorClick = () => {
+    if (onViewProfile && author.username) {
+      onViewProfile(author.username);
+    }
+  };
+
   return (
     <article className="glass-card post-card">
       <header className="post-header">
-        <div className="post-author">
+        <div
+          className="post-author"
+          onClick={handleAuthorClick}
+          style={{ cursor: onViewProfile ? 'pointer' : 'default' }}
+          title={onViewProfile ? `Voir le profil de ${author.username}` : ''}
+        >
           {authorAvatarUrl ? (
             <img src={authorAvatarUrl} alt={author.username} className="avatar" />
           ) : (
@@ -54,9 +65,9 @@ export function PostCard({ post, onDelete }) {
           )}
 
           <div>
-            <div className="post-author-name">
-              {author.first_name ? `${author.first_name} ${author.last_name}` : author.username}
-              {author.is_admin && <span className="badge badge-admin" style={{ marginLeft: 8 }}>Admin</span>}
+            <div className="post-author-name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>{author.first_name ? `${author.first_name} ${author.last_name}` : author.username}</span>
+              {author.is_admin && <span className="badge badge-admin">Admin</span>}
             </div>
             <div className="post-date">
               {new Date(post.created_at).toLocaleDateString('fr-FR', {
@@ -104,7 +115,7 @@ export function PostCard({ post, onDelete }) {
         </button>
       </footer>
 
-      {showComments && <CommentSection postId={post.id} />}
+      {showComments && <CommentSection postId={post.id} onViewProfile={onViewProfile} />}
     </article>
   );
 }

@@ -7,11 +7,12 @@ import { EventsPage } from './pages/EventsPage';
 import { MembersPage } from './pages/MembersPage';
 import { AdminPage } from './pages/AdminPage';
 import { ProfilePage } from './pages/ProfilePage';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, ArrowLeft } from 'lucide-react';
 
 function AppContent() {
   const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('feed');
+  const [targetProfileUsername, setTargetProfileUsername] = useState(null);
 
   if (loading) {
     return (
@@ -28,16 +29,41 @@ function AppContent() {
     return <LoginPage />;
   }
 
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setTargetProfileUsername(null);
+  };
+
+  const handleOpenUserProfile = (username) => {
+    setTargetProfileUsername(username);
+  };
+
   return (
     <div className="app-container">
-      <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Navbar activeTab={activeTab} setActiveTab={handleTabChange} />
       
       <main className="main-content">
-        {activeTab === 'feed' && <FeedPage onNavigate={setActiveTab} />}
-        {activeTab === 'events' && <EventsPage />}
-        {activeTab === 'members' && <MembersPage />}
-        {activeTab === 'admin' && user.is_admin && <AdminPage />}
-        {activeTab === 'profile' && <ProfilePage />}
+        {targetProfileUsername ? (
+          <div>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => setTargetProfileUsername(null)}
+              style={{ marginBottom: 16 }}
+            >
+              <ArrowLeft size={16} />
+              <span>Retour</span>
+            </button>
+            <ProfilePage targetUsername={targetProfileUsername} />
+          </div>
+        ) : (
+          <>
+            {activeTab === 'feed' && <FeedPage onNavigate={handleTabChange} onViewProfile={handleOpenUserProfile} />}
+            {activeTab === 'events' && <EventsPage />}
+            {activeTab === 'members' && <MembersPage onViewProfile={handleOpenUserProfile} />}
+            {activeTab === 'admin' && user.is_admin && <AdminPage />}
+            {activeTab === 'profile' && <ProfilePage targetUsername={user.username} />}
+          </>
+        )}
       </main>
     </div>
   );

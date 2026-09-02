@@ -5,7 +5,7 @@ import { PostCard } from '../components/PostCard';
 import { CreatePostModal } from '../components/CreatePostModal';
 import { PlusCircle, Image, RefreshCw, Calendar, Users } from 'lucide-react';
 
-export function FeedPage({ onNavigate }) {
+export function FeedPage({ onNavigate, onViewProfile }) {
   const { user } = useAuth();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -78,7 +78,6 @@ export function FeedPage({ onNavigate }) {
 
           <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
             <PlusCircle size={18} />
-            <span style={{ display: 'none', minWidth: 'md' }}>Publier</span>
           </button>
         </div>
 
@@ -98,14 +97,18 @@ export function FeedPage({ onNavigate }) {
           </div>
         ) : (
           posts.map((post) => (
-            <PostCard key={post.id} post={post} onDelete={handlePostDeleted} />
+            <PostCard
+              key={post.id}
+              post={post}
+              onDelete={handlePostDeleted}
+              onViewProfile={onViewProfile}
+            />
           ))
         )}
       </div>
 
       {/* Colonne Latérale : Widgets & Événements à venir */}
       <aside>
-        {/* Widget Événements à venir */}
         <div className="glass-card" style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
             <h3 style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -146,19 +149,17 @@ export function FeedPage({ onNavigate }) {
           )}
         </div>
 
-        {/* Widget Quota Réseau */}
         <div className="glass-card">
           <h3 style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <Users size={18} color="#a855f7" />
             Cercle Privé
           </h3>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-            Réseau restreint autohébergé. Capacité recommandée : 15 personnes sur VPS Linux LWS.
+            Réseau restreint autohébergé pour 15 personnes sur VPS / LWS.
           </p>
         </div>
       </aside>
 
-      {/* Modal de création de publication */}
       <CreatePostModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

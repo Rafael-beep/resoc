@@ -812,6 +812,19 @@ a:hover {
     border-radius: var(--radius-md);
   }
 
+  .insta-tabs-bar {
+    gap: 8px;
+    justify-content: space-around;
+  }
+
+  .insta-tab-btn {
+    padding: 10px 4px;
+    font-size: 0.7rem;
+    gap: 4px;
+    flex: 1;
+    justify-content: center;
+  }
+
   .insta-profile-header {
     flex-direction: column;
     text-align: center;

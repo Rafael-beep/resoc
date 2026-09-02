@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { api, getMediaUrl } from '../services/api';
-import { ProfilePage } from './ProfilePage';
-import { Users, Mail, RefreshCw, ArrowLeft } from 'lucide-react';
+import { Users, Mail, RefreshCw } from 'lucide-react';
 
-export function MembersPage() {
+export function MembersPage({ onViewProfile }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMemberUsername, setSelectedMemberUsername] = useState(null);
 
   useEffect(() => {
     async function fetchMembers() {
@@ -21,22 +19,6 @@ export function MembersPage() {
     }
     fetchMembers();
   }, []);
-
-  if (selectedMemberUsername) {
-    return (
-      <div>
-        <button
-          className="btn btn-secondary btn-sm"
-          onClick={() => setSelectedMemberUsername(null)}
-          style={{ marginBottom: 16 }}
-        >
-          <ArrowLeft size={16} />
-          <span>Retour à l'annuaire</span>
-        </button>
-        <ProfilePage targetUsername={selectedMemberUsername} />
-      </div>
-    );
-  }
 
   return (
     <div>
@@ -65,7 +47,7 @@ export function MembersPage() {
                 key={m.id}
                 className="glass-card"
                 style={{ display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer', transition: 'transform var(--transition-fast)' }}
-                onClick={() => setSelectedMemberUsername(m.username)}
+                onClick={() => onViewProfile && onViewProfile(m.username)}
               >
                 <div className="insta-avatar-ring-sm">
                   {avatarUrl ? (

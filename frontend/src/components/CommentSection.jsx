@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { api } from '../services/api';
+import { api, getMediaUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Send, Trash2 } from 'lucide-react';
 
-export function CommentSection({ postId }) {
+export function CommentSection({ postId, onViewProfile }) {
   const { user } = useAuth();
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -56,55 +56,66 @@ export function CommentSection({ postId }) {
         <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Chargement des commentaires...</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {comments.map((comment) => (
-            <div
-              key={comment.id}
-              style={{
-                display: 'flex',
-                gap: 10,
-                background: 'rgba(255,255,255,0.03)',
-                padding: '10px 14px',
-                borderRadius: 'var(--radius-md)'
-              }}
-            >
-              {comment.author?.avatar_url ? (
-                <img src={comment.author.avatar_url} alt={comment.author.username} className="avatar avatar-sm" />
-              ) : (
-                <div className="avatar avatar-sm">
-                  {(comment.author?.first_name?.[0] || comment.author?.username?.[0] || '?').toUpperCase()}
-                </div>
-              )}
+          {comments.map((comment) => {
+            const authorAvatar = getMediaUrl(comment.author?.avatar_url);
 
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>
-                    {comment.author?.first_name ? `${comment.author.first_name} ${comment.author.last_name}` : comment.author?.username}
-                  </span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    {new Date(comment.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-
-                <div style={{ fontSize: '0.9rem', marginTop: 4, color: 'var(--text-main)' }}>
-                  {comment.content}
-                </div>
-              </div>
-
-              {(user?.is_admin || user?.id === comment.user_id) && (
-                <button
-                  onClick={() => handleDeleteComment(comment.id)}
-                  style={{ background: 'none', border: 'none', color: 'var(--text-subtle)', cursor: 'pointer', alignSelf: 'flex-start' }}
-                  title="Supprimer"
+            return (
+              <div
+                key={comment.id}
+                style={{
+                  display: 'flex',
+                  gap: 10,
+                  background: 'rgba(255,255,255,0.03)',
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-md)'
+                }}
+              >
+                <div
+                  onClick={() => onViewProfile && comment.author?.username && onViewProfile(comment.author.username)}
+                  style={{ cursor: onViewProfile ? 'pointer' : 'default' }}
                 >
-                  <Trash2 size={14} />
-                </button>
-              )}
-            </div>
-          ))}
+                  {authorAvatar ? (
+                    <img src={authorAvatar} alt={comment.author.username} className="avatar avatar-sm" />
+                  ) : (
+                    <div className="avatar avatar-sm">
+                      {(comment.author?.first_name?.[0] || comment.author?.username?.[0] || '?').toUpperCase()}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span
+                      style={{ fontWeight: 700, fontSize: '0.85rem', cursor: onViewProfile ? 'pointer' : 'default' }}
+                      onClick={() => onViewProfile && comment.author?.username && onViewProfile(comment.author.username)}
+                    >
+                      {comment.author?.first_name ? `${comment.author.first_name} ${comment.author.last_name}` : comment.author?.username}
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      {new Date(comment.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: '0.9rem', marginTop: 4, color: 'var(--text-main)' }}>
+                    {comment.content}
+                  </div>
+                </div>
+
+                {(user?.is_admin || user?.id === comment.user_id) && (
+                  <button
+                    onClick={() => handleDeleteComment(comment.id)}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-subtle)', cursor: 'pointer', alignSelf: 'flex-start' }}
+                    title="Supprimer"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Formulaire d'ajout de commentaire */}
       <form onSubmit={handleAddComment} style={{ display: 'flex', gap: 8, marginTop: 14 }}>
         <input
           type="text"
