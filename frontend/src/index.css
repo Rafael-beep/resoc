@@ -582,11 +582,17 @@ a:hover {
 .uploader-dropzone {
   border: 2px dashed var(--border-color);
   border-radius: var(--radius-md);
-  padding: 20px;
+  padding: 20px 16px;
   text-align: center;
   cursor: pointer;
   background: rgba(255, 255, 255, 0.02);
   transition: border-color var(--transition-fast), background var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .uploader-dropzone:hover {

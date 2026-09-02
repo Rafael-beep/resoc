@@ -25,7 +25,7 @@ export function MediaUploader({ files = [], setFiles }) {
   };
 
   return (
-    <div>
+    <div style={{ width: '100%' }}>
       <label className="uploader-dropzone">
         <input
           type="file"
@@ -36,16 +36,16 @@ export function MediaUploader({ files = [], setFiles }) {
           disabled={files.length >= MAX_MEDIA}
         />
         <UploadCloud size={32} style={{ color: 'var(--accent-primary)', marginBottom: 8 }} />
-        <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+        <div style={{ fontWeight: 600, fontSize: '0.95rem', lineHeight: 1.4 }}>
           Cliquez pour ajouter des photos ou vidéos
         </div>
-        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
-          Format : PNG, JPG, GIF, WEBP, MP4 (<strong>Maximum {MAX_MEDIA} médias par publication</strong>)
+        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.4 }}>
+          Format : PNG, JPG, GIF, WEBP, MP4 (<strong>Max {MAX_MEDIA} médias</strong>)
         </div>
 
-        <div style={{ marginTop: 10 }}>
+        <div style={{ marginTop: 12 }}>
           <span className="badge badge-media-count">
-            {files.length} / {MAX_MEDIA} fichiers sélectionnés
+            {files.length} / {MAX_MEDIA} sélectionnés
           </span>
         </div>
       </label>
@@ -56,7 +56,6 @@ export function MediaUploader({ files = [], setFiles }) {
         </div>
       )}
 
-      {/* Aperçu des miniatures sélectionnées */}
       {files.length > 0 && (
         <div className="media-previews-grid">
           {files.map((file, idx) => {

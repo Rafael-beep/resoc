@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../services/api';
+import { api, getMediaUrl } from '../services/api';
 import { MediaCarousel } from './MediaCarousel';
 import { CommentSection } from './CommentSection';
-import { Heart, MessageSquare, Trash2, Shield } from 'lucide-react';
+import { Heart, MessageSquare, Trash2 } from 'lucide-react';
 
 export function PostCard({ post, onDelete }) {
   const { user } = useAuth();
   const [reactionsCount, setReactionsCount] = useState(post.reactions_count || 0);
   const [userReaction, setUserReaction] = useState(post.user_reaction);
   const [showComments, setShowComments] = useState(false);
-  const [commentsCount, setCommentsCount] = useState(post.comments_count || 0);
+  const [commentsCount] = useState(post.comments_count || 0);
 
   const handleToggleReaction = async () => {
     try {
@@ -38,14 +38,15 @@ export function PostCard({ post, onDelete }) {
   };
 
   const author = post.author || {};
+  const authorAvatarUrl = getMediaUrl(author.avatar_url);
   const isAuthorOrAdmin = user?.is_admin || user?.id === post.user_id;
 
   return (
     <article className="glass-card post-card">
       <header className="post-header">
         <div className="post-author">
-          {author.avatar_url ? (
-            <img src={author.avatar_url} alt={author.username} className="avatar" />
+          {authorAvatarUrl ? (
+            <img src={authorAvatarUrl} alt={author.username} className="avatar" />
           ) : (
             <div className="avatar">
               {(author.first_name?.[0] || author.username?.[0] || '?').toUpperCase()}
@@ -80,13 +81,10 @@ export function PostCard({ post, onDelete }) {
         )}
       </header>
 
-      {/* Texte de la publication */}
       {post.content && <div className="post-content">{post.content}</div>}
 
-      {/* Carrousel de médias (jusqu'à 10 médias) */}
       {post.media && post.media.length > 0 && <MediaCarousel mediaList={post.media} />}
 
-      {/* Actions (Like & Commentaires) */}
       <footer className="post-actions">
         <button
           className={`action-btn ${userReaction ? 'active' : ''}`}
@@ -106,7 +104,6 @@ export function PostCard({ post, onDelete }) {
         </button>
       </footer>
 
-      {/* Section des commentaires dépliable */}
       {showComments && <CommentSection postId={post.id} />}
     </article>
   );

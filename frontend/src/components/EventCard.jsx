@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { api } from '../services/api';
+import { api, getMediaUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Calendar, MapPin, CheckCircle2, HelpCircle, XCircle, Trash2, Clock } from 'lucide-react';
+import { Calendar, MapPin, CheckCircle2, HelpCircle, XCircle, Trash2 } from 'lucide-react';
 
 export function EventCard({ event, onUpdate, onDelete }) {
   const { user } = useAuth();
@@ -43,14 +43,14 @@ export function EventCard({ event, onUpdate, onDelete }) {
   });
 
   const isCreatorOrAdmin = user?.is_admin || user?.id === event.creator_id;
+  const coverUrl = getMediaUrl(event.cover_image_url);
 
   return (
     <div className="glass-card" style={{ marginBottom: 20, overflow: 'hidden' }}>
-      {/* Cover Image optionnelle */}
-      {event.cover_image_url && (
+      {coverUrl && (
         <div style={{ width: '100%', height: '180px', overflow: 'hidden', margin: '-20px -20px 16px -20px' }}>
           <img
-            src={event.cover_image_url}
+            src={coverUrl}
             alt={event.title}
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
@@ -96,14 +96,12 @@ export function EventCard({ event, onUpdate, onDelete }) {
         )}
       </div>
 
-      {/* Description */}
       {event.description && (
         <p style={{ fontSize: '0.95rem', color: 'var(--text-main)', marginBottom: 16, lineHeight: 1.6 }}>
           {event.description}
         </p>
       )}
 
-      {/* Boutons RSVP & Présence */}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 14, borderTop: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
@@ -134,7 +132,6 @@ export function EventCard({ event, onUpdate, onDelete }) {
           </button>
         </div>
 
-        {/* Liste condensée des participants */}
         {event.participants && event.participants.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             {event.participants.slice(0, 5).map((pt, idx) => (

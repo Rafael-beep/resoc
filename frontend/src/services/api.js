@@ -1,5 +1,18 @@
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
+export function getMediaUrl(filePath) {
+  if (!filePath) return '';
+  if (filePath.startsWith('http://') || filePath.startsWith('https://') || filePath.startsWith('data:')) {
+    return filePath;
+  }
+  
+  // Extraire l'hôte de l'API (ex: https://resoc.onrender.com)
+  const host = API_BASE.includes('http') ? API_BASE.replace(/\/api\/?$/, '') : '';
+  const cleanPath = filePath.startsWith('/') ? filePath : `/${filePath}`;
+  
+  return `${host}${cleanPath}`;
+}
+
 function getAuthHeader() {
   const token = localStorage.getItem('token');
   return token ? { Authorization: `Bearer ${token}` } : {};

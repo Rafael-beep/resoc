@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
+import { getMediaUrl } from '../services/api';
 import { Home, Calendar, Users, Shield, LogOut, User as UserIcon } from 'lucide-react';
 
 export function Navbar({ activeTab, setActiveTab }) {
@@ -7,9 +8,10 @@ export function Navbar({ activeTab, setActiveTab }) {
 
   if (!user) return null;
 
+  const avatarUrl = getMediaUrl(user.avatar_url);
+
   return (
     <>
-      {/* Header Desktop & Tablet */}
       <header className="navbar">
         <div className="navbar-inner">
           <div className="navbar-brand" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('feed')}>
@@ -56,8 +58,8 @@ export function Navbar({ activeTab, setActiveTab }) {
               className={`nav-link ${activeTab === 'profile' ? 'active' : ''}`}
               onClick={() => setActiveTab('profile')}
             >
-              {user.avatar_url ? (
-                <img src={user.avatar_url} alt={user.username} className="avatar avatar-sm" />
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={user.username} className="avatar avatar-sm" />
               ) : (
                 <div className="avatar avatar-sm">
                   {(user.first_name?.[0] || user.username[0]).toUpperCase()}
@@ -73,7 +75,6 @@ export function Navbar({ activeTab, setActiveTab }) {
         </div>
       </header>
 
-      {/* Navigation Bas de Page dédiée aux Smartphones / Mobiles */}
       <nav className="mobile-bottom-bar">
         <button
           className={`mobile-nav-item ${activeTab === 'feed' ? 'active' : ''}`}
@@ -113,8 +114,8 @@ export function Navbar({ activeTab, setActiveTab }) {
           className={`mobile-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
           onClick={() => setActiveTab('profile')}
         >
-          {user.avatar_url ? (
-            <img src={user.avatar_url} alt={user.username} className="avatar avatar-sm" style={{ width: 22, height: 22 }} />
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={user.username} className="avatar avatar-sm" style={{ width: 22, height: 22 }} />
           ) : (
             <UserIcon size={20} />
           )}

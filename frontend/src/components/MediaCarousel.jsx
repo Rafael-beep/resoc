@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Play, Maximize2, X } from 'lucide-react';
+import { getMediaUrl } from '../services/api';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 export function MediaCarousel({ mediaList = [] }) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -8,6 +9,7 @@ export function MediaCarousel({ mediaList = [] }) {
   if (!mediaList || mediaList.length === 0) return null;
 
   const currentMedia = mediaList[currentIndex];
+  const fullMediaUrl = getMediaUrl(currentMedia.file_path);
 
   const handlePrev = (e) => {
     e.stopPropagation();
@@ -25,21 +27,20 @@ export function MediaCarousel({ mediaList = [] }) {
         <div className="media-stage" onClick={() => setLightboxOpen(true)}>
           {currentMedia.media_type === 'video' ? (
             <video
-              src={currentMedia.file_path}
+              src={fullMediaUrl}
               controls
               className="media-item"
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
             <img
-              src={currentMedia.file_path}
+              src={fullMediaUrl}
               alt={`Médias ${currentIndex + 1}`}
               className="media-item"
               style={{ cursor: 'zoom-in' }}
             />
           )}
 
-          {/* Badge du nombre de médias s'il y en a plusieurs */}
           {mediaList.length > 1 && (
             <div
               style={{
@@ -56,12 +57,11 @@ export function MediaCarousel({ mediaList = [] }) {
                 zIndex: 5
               }}
             >
-              {currentIndex + 1} / {mediaList.length} (Max 10)
+              {currentIndex + 1} / {mediaList.length}
             </div>
           )}
         </div>
 
-        {/* Boutons de navigation du carrousel */}
         {mediaList.length > 1 && (
           <>
             <button className="carousel-btn carousel-btn-prev" onClick={handlePrev} title="Précédent">
@@ -87,7 +87,6 @@ export function MediaCarousel({ mediaList = [] }) {
         )}
       </div>
 
-      {/* Lightbox Modal pour voir en grand format */}
       {lightboxOpen && currentMedia.media_type === 'photo' && (
         <div className="modal-overlay" onClick={() => setLightboxOpen(false)}>
           <div style={{ position: 'relative', maxWidth: '95vw', maxHeight: '95vh' }}>
@@ -106,7 +105,7 @@ export function MediaCarousel({ mediaList = [] }) {
               <X size={28} />
             </button>
             <img
-              src={currentMedia.file_path}
+              src={fullMediaUrl}
               alt="Vue agrandie"
               style={{ maxWidth: '95vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: '12px' }}
             />
