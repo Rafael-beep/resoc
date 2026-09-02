@@ -11,6 +11,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     first_name = db.Column(db.String(50), nullable=True)
     last_name = db.Column(db.String(50), nullable=True)
+    bio = db.Column(db.String(255), nullable=True)
     avatar_url = db.Column(db.String(255), nullable=True)
     is_admin = db.Column(db.Boolean, default=False, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
@@ -36,8 +37,10 @@ class User(db.Model):
             'email': self.email,
             'first_name': self.first_name or '',
             'last_name': self.last_name or '',
+            'bio': self.bio or '',
             'avatar_url': self.avatar_url or '',
             'is_admin': self.is_admin,
             'is_active': self.is_active,
+            'posts_count': len(self.posts),
             'created_at': self.created_at.isoformat() if self.created_at else None
         }

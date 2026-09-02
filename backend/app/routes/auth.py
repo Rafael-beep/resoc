@@ -73,11 +73,14 @@ def update_profile():
     first_name = request.form.get('first_name')
     last_name = request.form.get('last_name')
     email = request.form.get('email')
+    bio = request.form.get('bio')
 
     if first_name is not None:
         user.first_name = first_name.strip()
     if last_name is not None:
         user.last_name = last_name.strip()
+    if bio is not None:
+        user.bio = bio.strip()
     if email is not None and email.strip() != user.email:
         existing = User.query.filter_by(email=email.strip()).first()
         if existing:
