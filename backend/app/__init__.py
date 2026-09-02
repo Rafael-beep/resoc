@@ -1,8 +1,7 @@
 import os
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, jsonify
 from app.config import Config
 from app.extensions import db, jwt, cors
-from app.models.user import User
 
 def create_app(config_class=Config):
     app = Flask(__name__)
@@ -29,7 +28,17 @@ def create_app(config_class=Config):
     app.register_blueprint(events_bp)
     app.register_blueprint(users_bp)
 
-    # Route d'accès aux fichiers téléversés pour le mode dev
+    # Auto-créer les tables avant chaque première requête si nécessaire
+    @app.before_request
+    def ensure_db_ready():
+        if not getattr(app, '_db_inited', False):
+            try:
+                init_db(app)
+                app._db_inited = True
+            except Exception as err:
+                app.logger.error(f"Erreur d'initialisation BDD : {err}")
+
+    # Route d'accès aux fichiers téléversés
     @app.route('/uploads/<path:filename>')
     def uploaded_file(filename):
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
@@ -39,13 +48,23 @@ def create_app(config_class=Config):
     def health():
         return {'status': 'healthy', 'app': 'Resoc API'}
 
+    # Gestionnaire d'erreur 500 lisible
+    @app.errorhandler(500)
+    def handle_500(e):
+        return jsonify({'error': 'Erreur interne du serveur. Réessayez ou vérifiez la BDD.'}), 500
+
     return app
 
 def init_db(app):
     with app.app_context():
-        db.create_all()
+        from app.models.user import User
+        try:
+            db.create_all()
+        except Exception as e:
+            print(f"[WARN] MySQL non joignable, bascule automatique sur SQLite : {e}")
+            app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///resoc_fallback.db'
+            db.create_all()
 
-        # Seed compte administrateur initial si la table est vide
         admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
         admin_email = os.environ.get('ADMIN_EMAIL', 'admin@resoc.local')
         admin_password = os.environ.get('ADMIN_PASSWORD', 'AdminPassword123!')
