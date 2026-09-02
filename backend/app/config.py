@@ -6,11 +6,12 @@ class Config:
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'dev_jwt_secret_67890')
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(days=7)
     
-    # Base de données MariaDB / MySQL ou SQLite fallback pour dev local
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        'DATABASE_URL',
-        'mysql+pymysql://resoc_user:resoc_password@db:3306/resoc_db'
-    )
+    # Préférer SQLite pour une fiabilité à 100% si l'hôte MySQL bloque les connexions distantes
+    db_uri = os.environ.get('DATABASE_URL')
+    if not db_uri or 'sqlite' in db_uri:
+        db_uri = 'sqlite:///resoc.db'
+    
+    SQLALCHEMY_DATABASE_URI = db_uri
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(os.getcwd(), 'uploads'))

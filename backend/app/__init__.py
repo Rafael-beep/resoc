@@ -12,7 +12,6 @@ def create_app(config_class=Config):
     jwt.init_app(app)
     cors.init_app(app, resources={r"/api/*": {"origins": "*"}})
 
-    # Assurer la présence du dossier d'upload
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
     # Enregistrer les Blueprints
@@ -28,30 +27,24 @@ def create_app(config_class=Config):
     app.register_blueprint(events_bp)
     app.register_blueprint(users_bp)
 
-    # Auto-créer les tables avant chaque première requête si nécessaire
-    @app.before_request
-    def ensure_db_ready():
-        if not getattr(app, '_db_inited', False):
-            try:
-                init_db(app)
-                app._db_inited = True
-            except Exception as err:
-                app.logger.error(f"Erreur d'initialisation BDD : {err}")
-
-    # Route d'accès aux fichiers téléversés
     @app.route('/uploads/<path:filename>')
     def uploaded_file(filename):
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-    # Health check endpoint
     @app.route('/api/health')
     def health():
         return {'status': 'healthy', 'app': 'Resoc API'}
 
-    # Gestionnaire d'erreur 500 lisible
+    # Gestionnaire d'erreur 500 informatif
     @app.errorhandler(500)
     def handle_500(e):
-        return jsonify({'error': 'Erreur interne du serveur. Réessayez ou vérifiez la BDD.'}), 500
+        return jsonify({'error': f'Erreur serveur : {str(e)}'}), 500
+
+    # Initialiser la BDD au démarrage de l'app
+    try:
+        init_db(app)
+    except Exception as e:
+        print(f"[WARN] Erreur au démarrage init_db : {e}")
 
     return app
 
@@ -61,25 +54,31 @@ def init_db(app):
         try:
             db.create_all()
         except Exception as e:
-            print(f"[WARN] MySQL non joignable, bascule automatique sur SQLite : {e}")
-            app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///resoc_fallback.db'
+            print(f"[BDD] Erreur de connexion MariaDB/MySQL : {e}")
+            print("[BDD] Bascule automatique sur la base de données SQLite locale...")
+            app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///resoc.db'
+            db.engine.dispose()
+            db.init_app(app)
             db.create_all()
 
         admin_username = os.environ.get('ADMIN_USERNAME', 'admin')
         admin_email = os.environ.get('ADMIN_EMAIL', 'admin@resoc.local')
         admin_password = os.environ.get('ADMIN_PASSWORD', 'AdminPassword123!')
 
-        admin = User.query.filter_by(username=admin_username).first()
-        if not admin:
-            admin = User(
-                username=admin_username,
-                email=admin_email,
-                first_name='Admin',
-                last_name='Système',
-                is_admin=True,
-                is_active=True
-            )
-            admin.set_password(admin_password)
-            db.session.add(admin)
-            db.session.commit()
-            print(f"[INIT] Compte administrateur créé : {admin_username}")
+        try:
+            admin = User.query.filter_by(username=admin_username).first()
+            if not admin:
+                admin = User(
+                    username=admin_username,
+                    email=admin_email,
+                    first_name='Admin',
+                    last_name='Système',
+                    is_admin=True,
+                    is_active=True
+                )
+                admin.set_password(admin_password)
+                db.session.add(admin)
+                db.session.commit()
+                print(f"[INIT] Compte administrateur créé : {admin_username}")
+        except Exception as err:
+            print(f"[INIT] Erreur création admin : {err}")
