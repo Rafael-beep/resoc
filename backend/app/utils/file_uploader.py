@@ -2,6 +2,7 @@ import os
 import uuid
 import json
 import io
+import traceback
 from werkzeug.utils import secure_filename
 from flask import current_app
 from google.oauth2 import service_account
@@ -29,9 +30,14 @@ def save_to_google_drive(file_obj, filename, folder_id):
     try:
         credentials_json = os.environ.get('GOOGLE_CREDENTIALS_JSON')
         if not credentials_json:
+            print("[GOOGLE DRIVE] GOOGLE_CREDENTIALS_JSON absent des variables d'environnement.")
             return None
 
+        # Nettoyage et parsing du JSON
         creds_dict = json.loads(credentials_json)
+        if 'private_key' in creds_dict and isinstance(creds_dict['private_key'], str):
+            creds_dict['private_key'] = creds_dict['private_key'].replace('\\n', '\n')
+
         credentials = service_account.Credentials.from_service_account_info(
             creds_dict,
             scopes=['https://www.googleapis.com/auth/drive']
@@ -39,35 +45,47 @@ def save_to_google_drive(file_obj, filename, folder_id):
 
         drive_service = build('drive', 'v3', credentials=credentials)
 
+        clean_filename = f"{uuid.uuid4().hex}_{filename}"
         file_metadata = {
-            'name': f"{uuid.uuid4().hex}_{filename}",
-            'parents': [folder_id] if folder_id else []
+            'name': clean_filename,
         }
+        if folder_id:
+            file_metadata['parents'] = [folder_id.strip()]
 
         file_content = io.BytesIO(file_obj.read())
         file_obj.seek(0)
 
         media = MediaIoBaseUpload(file_content, mimetype=file_obj.mimetype, resumable=True)
 
+        print(f"[GOOGLE DRIVE] Début de l'envoi du fichier : {clean_filename}")
+
         drive_file = drive_service.files().create(
             body=file_metadata,
             media_body=media,
-            fields='id, webViewLink, webContentLink'
+            fields='id, webViewLink, webContentLink',
+            supportsAllDrives=True
         ).execute()
 
         file_id = drive_file.get('id')
+        print(f"[GOOGLE DRIVE] Fichier créé avec succès, ID: {file_id}")
 
-        # Rendre le fichier lisible publiquement
-        drive_service.permissions().create(
-            fileId=file_id,
-            body={'type': 'anyone', 'role': 'reader'}
-        ).execute()
+        # Partage public en lecture
+        try:
+            drive_service.permissions().create(
+                fileId=file_id,
+                body={'type': 'anyone', 'role': 'reader'},
+                supportsAllDrives=True
+            ).execute()
+        except Exception as perm_err:
+            print(f"[GOOGLE DRIVE] Warning permission : {perm_err}")
 
-        # URL de rendu direct Google Drive
         direct_url = f"https://lh3.googleusercontent.com/d/{file_id}"
+        print(f"[GOOGLE DRIVE] URL finale générée : {direct_url}")
         return direct_url
+
     except Exception as e:
-        print(f"[GOOGLE DRIVE] Erreur upload : {e}")
+        print(f"[GOOGLE DRIVE ERROR] Échec de l'envoi vers Google Drive : {e}")
+        traceback.print_exc()
         return None
 
 def save_uploaded_file(file_obj, subfolder='posts'):
@@ -80,7 +98,7 @@ def save_uploaded_file(file_obj, subfolder='posts'):
 
     media_type = get_media_type(filename)
 
-    # 1. Téléversement automatique vers votre stockage Google Drive si configuré
+    # 1. Google Drive
     google_folder_id = os.environ.get('GOOGLE_DRIVE_FOLDER_ID')
     google_creds = os.environ.get('GOOGLE_CREDENTIALS_JSON')
     if google_creds:
@@ -88,7 +106,7 @@ def save_uploaded_file(file_obj, subfolder='posts'):
         if drive_url:
             return drive_url, media_type
 
-    # 2. Téléversement Cloudinary si configuré
+    # 2. Cloudinary
     cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME')
     api_key = os.environ.get('CLOUDINARY_API_KEY')
     api_secret = os.environ.get('CLOUDINARY_API_SECRET')
